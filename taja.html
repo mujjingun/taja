@@ -1,0 +1,133 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>타자겨루기</title>
+<style>
+body {
+    background-color: #DDD;
+    margin: 0;
+    color: #333;
+}
+header {
+    width: 100%;
+    background-color: rgba(0,0,0,0.8);
+    box-shadow: rgba(0,0,0,0.2) 0 0 10px;
+    height: 72px;
+    margin-bottom: 10px;
+    color: #eee;
+    line-height: 72px;
+    padding-left: 20px;
+    font-size: 28pt;
+}
+section {
+	margin:15px auto; 
+	width: 600px; 
+	height: 200px; 
+	display:table; 
+	background-color:white; 
+	padding: 15px; 
+	box-shadow: rgba(0,0,0,0.2) 0 0 10px;
+}
+</style>
+</head>
+<body>
+
+<header>
+타자겨루기
+<div style="float: right; font-size:12px; margin-right: 100px">
+Your name: <input type="text" id="username" value="Guest">
+<button id="namechange">Change</button>
+</div>
+</header>
+
+<section>
+Current Players:
+<ul id="playerlist">
+  <li>Coffee (you) - 61wpm</li>
+  <li>Tea - 278wpm</li>
+</ul>
+</section>
+
+<section>
+<textarea readonly style="display:block; width:100%; height: 100px; resize: none; font-size: 20px">
+닭 쫒던 개 지붕 쳐다보듯 한다
+</textarea>
+<textarea style="resize: none; margin-top: 15px; width:100%; height: 100px; font-size: 20px">
+</textarea>
+</section>
+<section>
+<button id="joingame">Join Game</button>
+<ul id="userlist">
+  <li>Coffee (you)</li>
+  <li>Tea</li>
+  <li>Milk</li>
+</ul>
+</section>
+</body>
+
+<script>
+var ingame = false;
+var sock = new WebSocket("ws://localhost:8765");
+var uuid = "";
+sock.onopen = function(event) {
+	// on join
+};
+sock.onmessage = function(event) {
+	var obj = JSON.parse(event.data);
+	switch(obj.type) {
+	case "yourid":
+		uuid = obj.yourid;
+		break;
+	case "userlist":
+		var dom = document.getElementById("userlist");
+		dom.innerHTML = ""
+		for(var i = 0; i < obj.userlist.length; ++i) {
+			var str = obj.userlist[i].name
+			if (obj.userlist[i].id == uuid)
+				str = "<b>" + str + " (You)</b>";
+			dom.innerHTML += "<li>" + str + "</li>";
+		}
+		break;
+	case "playerlist":
+		var dom = document.getElementById("playerlist");
+		dom.innerHTML = ""
+		if (obj.playerlist.length == 0)
+			dom.innerHTML = "Nobody joined the game.";
+		else {
+			for(var i = 0; i < obj.playerlist.length; ++i) {
+				var str = obj.playerlist[i].name;
+				if (obj.playerlist[i].id == uuid)
+					str = "<b>" + str + " (You)</b>";
+				dom.innerHTML += "<li>" + str + "</li>";
+			}
+		}
+		break;
+	}
+}
+window.onbeforeunload = function() {
+	sock.close();
+	return null;
+}
+
+document.getElementById("namechange")
+	.addEventListener("click", function() {
+	newname = document.getElementById("username").value;
+	sock.send(JSON.stringify({type: 'newname', newname: newname}));
+});
+
+document.getElementById("joingame")
+	.addEventListener("click", function() {
+	if (!ingame) {
+		document.getElementById("joingame").innerHTML = "Leave Game";
+		sock.send(JSON.stringify({type: 'joingame'}));
+		ingame = true;
+	}
+	else {
+		document.getElementById("joingame").innerHTML = "Join Game";
+		sock.send(JSON.stringify({type: 'leavegame'}));
+		ingame = false;
+	}
+});
+</script>
+</html>
