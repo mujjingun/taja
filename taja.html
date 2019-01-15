@@ -19,20 +19,58 @@ header {
     line-height: 72px;
     padding-left: 20px;
     font-size: 28pt;
+    box-sizing: border-box;
+}
+footer {
+    position: fixed;
+    bottom: 0;
+    width: 100%;
+    height: 36px;
+    margin-top: 100px;
+    color: #333;
+    line-height: 36px;
+    padding-left: 20px;
+    font-size: 10pt;
+    box-sizing: border-box;
 }
 section {
-	margin:15px auto; 
-	width: 600px; 
-	height: 200px; 
-	display:table; 
-	background-color:white; 
-	padding: 15px; 
+	margin:15px auto;
+	width: 600px;
+	height: 200px;
+	display:table;
+	background-color:white;
+	padding: 15px;
 	box-shadow: rgba(0,0,0,0.2) 0 0 10px;
+}
+#typearea {
+    position: absolute;
+    top: 0;
+    background-color: transparent;
+}
+.textarea {
+    resize: none;
+    width: 600px;
+    height: 100px;
+    font-size: 20px;
+    font-family: sans-serif;
+    padding: 10px;
+    overflow:auto;
+    border: 1px solid lightgrey;
+}
+#backdrop {
+    position: absolute;
+    top: 0;
+    color: transparent;
+}
+.correct {
+    background-color: #ccffcc;
+}
+.wrong {
+    background-color: #ff9999;
 }
 </style>
 </head>
 <body>
-
 <header>
 타자겨루기
 <div style="float: right; font-size:12px; margin-right: 100px">
@@ -42,39 +80,52 @@ Your name: <input type="text" id="username" value="Guest">
 </header>
 
 <section>
+<div id="connecting"><strong>Connecting to the Game...</strong></div>
+<div id="timerdiv" style="display:none"><strong>Game starting in <span id="timer"></span></strong></div>
 Current Players:
 <ul id="playerlist">
-  <li>Coffee (you) - 61wpm</li>
-  <li>Tea - 278wpm</li>
 </ul>
 </section>
 
-<section>
-<textarea readonly style="display:block; width:100%; height: 100px; resize: none; font-size: 20px">
-닭 쫒던 개 지붕 쳐다보듯 한다
+<section style="position:relative">
+<textarea class="textarea" id="textview" readonly placeholder="Text will appear here" autocomplete=off>
 </textarea>
-<textarea style="resize: none; margin-top: 15px; width:100%; height: 100px; font-size: 20px">
+<div style="margin-top:15px; position:relative; height:125px">
+<div class="textarea" id="backdrop" style="background-color:#dddddd">
+</div>
+<textarea class="textarea" id="typearea" readonly placeholder="Type here..." autocomplete=off onpaste="return false;">
 </textarea>
+</div>
 </section>
 <section>
 <button id="joingame">Join Game</button>
 <ul id="userlist">
-  <li>Coffee (you)</li>
-  <li>Tea</li>
-  <li>Milk</li>
 </ul>
 </section>
+
+<footer>
+Made by mujji 2019
+</footer>
 </body>
 
 <script>
+const typearea = document.getElementById("typearea");
+const textview = document.getElementById("textview");
+const backdrop = document.getElementById("backdrop");
+
 var ingame = false;
 var sock = new WebSocket("ws://localhost:8765");
 var uuid = "";
 sock.onopen = function(event) {
-	// on join
+	document.getElementById("connecting").style = "display: none";
 };
+sock.onclose = function(event) {
+	document.getElementById("connecting").style = "";
+	document.getElementById("connecting").innerHTML = "<b>Connection to the server was closed. Try refreshing the page.</b>";
+}
 sock.onmessage = function(event) {
 	var obj = JSON.parse(event.data);
+	console.log(obj.type);
 	switch(obj.type) {
 	case "yourid":
 		uuid = obj.yourid;
@@ -99,16 +150,75 @@ sock.onmessage = function(event) {
 				var str = obj.playerlist[i].name;
 				if (obj.playerlist[i].id == uuid)
 					str = "<b>" + str + " (You)</b>";
+                str += " " + obj.playerlist[i].progress + "/" + textview.value.length;
+                str += " - " + obj.playerlist[i].wpm.toFixed(1) + "WPM";
+                if (obj.playerlist[i].rank > 0) {
+                    str = obj.playerlist[i].rank + " - " + str;
+                }
 				dom.innerHTML += "<li>" + str + "</li>";
 			}
 		}
 		break;
+    case "ready":
+        var timerdiv = document.getElementById("timerdiv");
+        var timer = document.getElementById("timer");
+        if (obj.sec > 0) {
+            timerdiv.style = "";
+            timer.innerHTML = obj.sec;
+            typearea.setAttribute("readonly", "");
+            typearea.value = backdrop.value = "";
+            backdrop.style = "background-color:#dddddd";
+        }
+        else if (obj.sec == 0) {
+            timerdiv.style = "";
+            timer.innerHTML = "now!";
+            textview.value = obj.text;
+            typearea.removeAttribute("readonly");
+            typearea.value = backdrop.value = "";
+            textview.focus();
+            typearea.focus();
+            backdrop.style = "";
+        }
+        else {
+            timerdiv.style = "display:none";
+            typearea.setAttribute("readonly", "");
+            typearea.value = backdrop.value = "";
+            backdrop.style = "background-color:#dddddd";
+        }
+        break;
+    case "gameover":
+        document.getElementById("joingame").innerHTML = "Join Game";
+		ingame = false;
 	}
 }
 window.onbeforeunload = function() {
 	sock.close();
 	return null;
 }
+
+typearea.addEventListener("input", function() {
+    var text = typearea.value;
+    var ref = textview.value;
+    var string = "";
+    var chars = 0;
+    for (var i = 0; i < text.length; ++i) {
+        if (ref[i] == text[i]) {
+            chars++;
+            string += '<span class="correct">' + text[i] + '</span>';
+        }
+        else {
+            string += '<span class="wrong">' + text[i] + '</span>';
+        }
+    }
+    document.getElementById("backdrop").innerHTML = string;
+
+    if (text == ref) {
+        typearea.setAttribute("readonly", "");
+        backdrop.style = "background-color:#dddddd";
+    }
+
+    sock.send(JSON.stringify({type: 'progress', chars: chars}));
+});
 
 document.getElementById("namechange")
 	.addEventListener("click", function() {
