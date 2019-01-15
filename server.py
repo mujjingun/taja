@@ -4,6 +4,8 @@ import json
 import uuid
 import time
 import random
+import ssl
+import pathlib
 
 connected = set()
 players = set()
@@ -77,7 +79,7 @@ class Game:
         self.started = True
         self.start_time = time.time()
         send_all(json.dumps({'type': 'ready', 'sec': 0, 'text': self.text}))
-        
+
     def end(self):
         self.start_timer.cancel()
         send_all(json.dumps({'type': 'ready', 'sec': -1}))
@@ -106,12 +108,12 @@ class User:
             msg = json.loads(msg)
         except:
             return
-        
+
         if msg['type'] == 'newname':
             self.name = msg['newname']
             await refresh_userlist();
             await refresh_playerlist();
-            
+
         if msg['type'] == 'joingame':
             if game is None or not game.started:
                 players.add(self)
@@ -119,10 +121,10 @@ class User:
                 self.rank = -1
                 self.finished = False
                 await refresh_playerlist();
-            
+
             if game is None:
                 start_game()
-            
+
         if msg['type'] == 'leavegame':
             await self.leave_game()
 
@@ -135,7 +137,7 @@ class User:
                     game.lastrank += 1
                     self.finished = True
                 await refresh_playerlist()
-                
+
                 if self.progress == len(game.text):
                     if all([p.finished for p in players]):
                         end_game()
@@ -144,7 +146,7 @@ class User:
         if self in players:
             players.remove(self)
         await refresh_playerlist();
-        
+
         if len(players) == 0:
             end_game()
 
@@ -176,7 +178,7 @@ async def hello(websocket, path):
     connected.add(user)
     await refresh_userlist()
     await refresh_playerlist()
-    
+
     while True:
         try:
             msg = await websocket.recv()
@@ -184,13 +186,16 @@ async def hello(websocket, path):
             break
 
         await user.handle(msg)
-    
+
     print(f"{user.name} disconnected")
-    
+
     connected.remove(user)
     await user.leave_game()
-    
-start_server = websockets.serve(hello, input('hostname:'), 8765)
+
+ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+ssl_context.load_cert_chain(
+    pathlib.Path(__file__).with_name(input('cert file: '))
+start_server = websockets.serve(hello, input('hostname: '), 8765)
 
 asyncio.get_event_loop().run_until_complete(start_server)
 asyncio.get_event_loop().run_forever()
