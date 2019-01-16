@@ -192,8 +192,8 @@ async def hello(websocket, path):
     connected.remove(user)
     await user.leave_game()
 
-ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
-ssl_context.load_cert_chain(input('cert file: '))
+#ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+#ssl_context.load_cert_chain(input('cert file: '))
 start_server = websockets.serve(hello, input('hostname: '), 8765)
 
 asyncio.get_event_loop().run_until_complete(start_server)
