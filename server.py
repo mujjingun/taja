@@ -74,8 +74,10 @@ class Game:
             self.start()
         self.start_timer = asyncio.ensure_future(timer())
         async def timeout():
-            await asyncio.sleep(60)
-            self.end()
+            for sec in range(60):
+                send_all(json.dumps({'type': 'timeout', 'sec': sec}))
+                await asyncio.sleep(1)
+            end_game()
         self.timeout_timer = asyncio.ensure_future(timeout())
 
     def start(self):

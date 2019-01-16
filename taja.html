@@ -82,6 +82,7 @@ Your name: <input type="text" id="username" value="Guest">
 <section>
 <div id="connecting"><strong>Connecting to the Game...</strong></div>
 <div id="timerdiv" style="display:none"><strong>Game starting in <span id="timer"></span></strong></div>
+<div><span id="timeout"></span>/60 seconds left</div>
 Current Players:
 <ul id="playerlist">
 </ul>
@@ -189,6 +190,10 @@ sock.onmessage = function(event) {
     case "gameover":
         document.getElementById("joingame").innerHTML = "Join Game";
 		ingame = false;
+		break;
+    case "timeout":
+        document.getElementById("timeout").innerHTML = obj.sec;
+        break;
 	}
 }
 window.onbeforeunload = function() {
