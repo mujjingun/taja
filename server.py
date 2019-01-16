@@ -73,6 +73,10 @@ class Game:
                 await asyncio.sleep(1)
             self.start()
         self.start_timer = asyncio.ensure_future(timer())
+        async def timeout():
+            await asyncio.sleep(60)
+            self.end()
+        selft.timeout_timer = asyncio.ensure_future(timeout())
 
     def start(self):
         print("game begin")
@@ -82,6 +86,7 @@ class Game:
 
     def end(self):
         self.start_timer.cancel()
+        self.timeout_timer.cancel()
         send_all(json.dumps({'type': 'ready', 'sec': -1}))
 
 def start_game():
@@ -101,7 +106,7 @@ class User:
     def __init__(self, sock):
         self.sock = sock
         self.id = str(uuid.uuid4())
-        self.name = "Guest"
+        self.name = "Guest" + self.id[-4:]
 
     async def handle(self, msg):
         try:
@@ -115,13 +120,12 @@ class User:
             await refresh_playerlist();
 
         if msg['type'] == 'joingame':
-            if game is None or not game.started:
-                players.add(self)
-                self.progress = 0
-                self.rank = -1
-                self.finished = False
-                self.finish_time = time.time()
-                await refresh_playerlist();
+            players.add(self)
+            self.progress = 0
+            self.rank = -1
+            self.finished = False
+            self.finish_time = time.time()
+            await refresh_playerlist();
 
             if game is None:
                 start_game()
@@ -197,6 +201,7 @@ async def hello(websocket, path):
 #ssl_context.load_cert_chain(input('cert file: '))
 start_server = websockets.serve(hello, input('hostname: '), 8765)
 
+random.seed()
 asyncio.get_event_loop().run_until_complete(start_server)
 asyncio.get_event_loop().run_forever()
 
