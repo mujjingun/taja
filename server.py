@@ -120,6 +120,7 @@ class User:
                 self.progress = 0
                 self.rank = -1
                 self.finished = False
+                self.finish_time = time.time()
                 await refresh_playerlist();
 
             if game is None:
