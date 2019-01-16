@@ -76,7 +76,7 @@ class Game:
         async def timeout():
             await asyncio.sleep(60)
             self.end()
-        selft.timeout_timer = asyncio.ensure_future(timeout())
+        self.timeout_timer = asyncio.ensure_future(timeout())
 
     def start(self):
         print("game begin")
